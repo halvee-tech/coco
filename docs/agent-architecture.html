@@ -1,0 +1,927 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Coco - Agent Architecture v0.3</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, 'Helvetica Neue', Arial, sans-serif; background: #0a0a0f; color: #e0e0e0; padding: 40px; }
+  h1 { text-align: center; font-size: 28px; color: #fff; margin-bottom: 8px; }
+  .subtitle { text-align: center; color: #888; font-size: 14px; margin-bottom: 40px; }
+
+  .diagram { max-width: 1060px; margin: 0 auto; position: relative; }
+
+  .section { border-radius: 12px; padding: 20px; margin-bottom: 24px; position: relative; }
+  .section-title { font-size: 13px; font-weight: 600; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+
+  .layer-config { background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border: 1px solid #2a3a5e; }
+  .layer-config .section-title { color: #7b9fdb; }
+  .layer-assembly { background: linear-gradient(135deg, #1a2e1a 0%, #163e2a 100%); border: 1px solid #2a5e3a; }
+  .layer-assembly .section-title { color: #7bdb9f; }
+  .layer-engine { background: linear-gradient(135deg, #2e1a2e 0%, #3e1640 100%); border: 1px solid #5e2a5e; }
+  .layer-engine .section-title { color: #db7bdb; }
+  .layer-external { background: linear-gradient(135deg, #2e2a1a 0%, #3e3216 100%); border: 1px solid #5e4e2a; }
+  .layer-external .section-title { color: #dbc87b; }
+  .layer-event { background: linear-gradient(135deg, #2e1a1a 0%, #3e1616 100%); border: 1px solid #5e2a2a; }
+  .layer-event .section-title { color: #db7b7b; }
+
+  .boxes { display: flex; gap: 12px; flex-wrap: wrap; }
+  .box { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.12); border-radius: 8px; padding: 12px 16px; flex: 1; min-width: 140px; }
+  .box-label { font-size: 13px; font-weight: 600; color: #fff; margin-bottom: 4px; }
+  .box-desc { font-size: 11px; color: #999; line-height: 1.5; }
+  .box-fields { font-size: 11px; color: #bbb; font-family: 'SF Mono', Monaco, monospace; line-height: 1.6; margin-top: 6px; }
+  .box-fields .field { color: #8bb8e8; }
+  .box-fields .type { color: #7b9; }
+
+  .flow { display: flex; align-items: center; justify-content: center; padding: 8px 0; }
+  .flow-arrow { display: flex; align-items: center; gap: 8px; color: #666; font-size: 12px; }
+  .flow-arrow svg { width: 20px; height: 20px; }
+  .flow-label { font-size: 11px; color: #888; background: #1a1a1a; padding: 2px 10px; border-radius: 10px; }
+
+  .config-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .loop-container { display: flex; gap: 16px; align-items: stretch; }
+  .loop-steps { flex: 1; }
+  .loop-step { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 10px; }
+  .step-num { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; flex-shrink: 0; }
+  .step-content { flex: 1; }
+  .step-title { font-size: 12px; font-weight: 600; color: #ddd; }
+  .step-desc { font-size: 11px; color: #999; margin-top: 2px; }
+
+  .loop-sidebar { width: 220px; display: flex; flex-direction: column; gap: 8px; }
+  .sidebar-box { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 8px; padding: 10px 12px; flex: 1; }
+  .sidebar-label { font-size: 11px; font-weight: 600; margin-bottom: 4px; }
+  .sidebar-desc { font-size: 10px; color: #888; line-height: 1.5; }
+
+  .lifecycle { display: flex; align-items: center; gap: 0; margin: 16px 0; overflow-x: auto; }
+  .lc-step { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 10px 14px; text-align: center; white-space: nowrap; }
+  .lc-step .lc-num { font-size: 10px; color: #666; }
+  .lc-step .lc-text { font-size: 12px; color: #ddd; font-weight: 500; margin-top: 2px; }
+  .lc-step .lc-detail { font-size: 10px; color: #888; margin-top: 2px; }
+  .lc-arrow { color: #555; font-size: 18px; padding: 0 4px; flex-shrink: 0; }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .three-col { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .four-col { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 12px; }
+
+  .highlight { color: #8bb8e8; }
+  .highlight-green { color: #7bdb9f; }
+  .highlight-purple { color: #db7bdb; }
+  .highlight-yellow { color: #dbc87b; }
+  .highlight-red { color: #db7b7b; }
+  .highlight-cyan { color: #7bdbdb; }
+
+  .legend { display: flex; gap: 20px; justify-content: center; margin-bottom: 24px; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #999; }
+  .legend-dot { width: 10px; height: 10px; border-radius: 3px; }
+
+  .tag { display: inline-block; font-size: 9px; font-weight: 600; padding: 1px 6px; border-radius: 3px; margin-left: 6px; vertical-align: middle; }
+  .tag-new { background: #2a4a2a; color: #7bdb9f; border: 1px solid #3a6a3a; }
+  .tag-changed { background: #4a3a1a; color: #dbc87b; border: 1px solid #6a5a2a; }
+  .tag-v3 { background: #2a2a4a; color: #9b9bdb; border: 1px solid #3a3a6a; }
+
+  .divider { border: none; border-top: 1px dashed rgba(255,255,255,0.1); margin: 16px 0; }
+
+  .note { font-size: 10px; color: #666; font-style: italic; margin-top: 8px; }
+
+  /* Confirm flow special */
+  .confirm-flow { display: flex; align-items: stretch; gap: 0; margin: 12px 0; }
+  .cf-col { flex: 1; padding: 10px; position: relative; }
+  .cf-col-title { font-size: 10px; font-weight: 600; color: #666; text-align: center; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
+  .cf-item { background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.08); border-radius: 6px; padding: 8px 10px; margin-bottom: 6px; font-size: 11px; }
+  .cf-divider { width: 1px; background: rgba(255,255,255,0.08); margin: 0 4px; flex-shrink: 0; }
+  .cf-arrow-down { text-align: center; color: #555; font-size: 14px; margin: 2px 0; }
+</style>
+</head>
+<body>
+
+<h1>Coco Agent Architecture</h1>
+<p class="subtitle">Config-Driven Agent System / v0.3</p>
+
+<div class="legend">
+  <div class="legend-item"><div class="legend-dot" style="background:#2a3a5e"></div>Config Layer (DB)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#2a5e3a"></div>Assembly Layer (core/agent/)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#5e2a5e"></div>Engine Layer (core/engine/)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#5e2a2a"></div>Event Bus (IPC)</div>
+  <div class="legend-item"><div class="legend-dot" style="background:#5e4e2a"></div>External Services</div>
+</div>
+
+<div class="diagram">
+
+  <!-- ============================================ -->
+  <!-- 1. Agent Config (DB) -->
+  <!-- ============================================ -->
+  <div class="section layer-config">
+    <div class="section-title">1. Agent Config -- DB Record (agents table)</div>
+    <div class="config-grid">
+      <div class="box">
+        <div class="box-label">Identity</div>
+        <div class="box-fields">
+          <div><span class="field">name</span> <span class="type">string</span></div>
+          <div><span class="field">role_prompt</span> <span class="type">text</span></div>
+          <div><span class="field">is_builtin</span> <span class="type">boolean</span></div>
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-label">Model</div>
+        <div class="box-fields">
+          <div><span class="field">provider_id</span> <span class="type">string</span></div>
+          <div><span class="field">model_id</span> <span class="type">string</span></div>
+          <div><span class="field">temperature</span> <span class="type">number</span></div>
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-label">Capabilities</div>
+        <div class="box-fields">
+          <div><span class="field">tools</span> <span class="type">string[]</span></div>
+          <div><span class="field">agent_skills</span> <span class="type">string[]</span></div>
+          <div><span class="field">agent_rules</span> <span class="type">json</span></div>
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-label">Scope</div>
+        <div class="box-fields">
+          <div><span class="field">memory_scope</span> <span class="type">'global'|'project'</span></div>
+          <div><span class="field">max_iterations</span> <span class="type">number</span></div>
+          <div><span class="field">context_limit</span> <span class="type">number</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 1.5 Conversation Entry Points (NEW) -->
+  <!-- ============================================ -->
+  <div class="section" style="background: linear-gradient(135deg, #1a2a2e 0%, #162e3e 100%); border: 1px solid #2a4a5e;">
+    <div class="section-title" style="color: #7bdbdb;">1.5 Conversation Entry Points <span class="tag tag-v3">v0.3</span></div>
+    <div class="two-col">
+      <div class="box">
+        <div class="box-label" style="color:#7bdbdb">Path A: New Conversation</div>
+        <div class="box-desc" style="line-height: 1.8;">
+          User creates new conversation + selects Agent<br>
+          -> Cold Assembly runs (full pipeline)<br>
+          -> AgentRuntime created & cached<br>
+          -> Conversation record inserted to DB<br>
+          -> Ready for first message
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-label" style="color:#7bdbdb">Path B: Resume Conversation <span class="tag tag-v3">v0.3</span></div>
+        <div class="box-desc" style="line-height: 1.8;">
+          User opens existing conversation from sidebar<br>
+          -> Load conversation.agent_id from DB<br>
+          -> Cold Assembly runs (same pipeline, same result)<br>
+          -> Load message history from DB<br>
+          -> <strong style="color:#7bdbdb">ContextCompressor check</strong>: if history exceeds<br>
+          &nbsp;&nbsp;token budget, compress before first new message<br>
+          -> AgentRuntime cached, ready for next message<br><br>
+          <span style="color:#888">Previous turn's exit_status (complete / cancelled / error)<br>
+          does NOT affect resume. User simply sends next message.<br>
+          Partial/cancelled messages are in history as-is.</span>
+        </div>
+      </div>
+    </div>
+    <div class="note">Both paths converge at the same point: AgentRuntime cached + conversation in DB. From here, every user message follows the identical Hot Injection -> Engine flow. No special "resume" logic in the engine.</div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-arrow">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4 L10 16 M6 12 L10 16 L14 12"/></svg>
+      <span class="flow-label">Both paths -> AgentRuntime ready</span>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4 L10 16 M6 12 L10 16 L14 12"/></svg>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 2. Assembly Layer (Cold + Hot) -->
+  <!-- ============================================ -->
+  <div class="section layer-assembly">
+    <div class="section-title">2. Assembly Layer -- core/agent/</div>
+
+    <!-- Cold Assembly -->
+    <div style="margin-bottom: 20px;">
+      <div style="font-size: 12px; font-weight: 600; color: #4a8; margin-bottom: 10px;">
+        COLD ASSEMBLY (conversation open, runs once per session)
+      </div>
+      <div class="lifecycle">
+        <div class="lc-step">
+          <div class="lc-num">Step 1</div>
+          <div class="lc-text highlight-green">AgentLoader</div>
+          <div class="lc-detail">DB -> AgentConfig</div>
+        </div>
+        <div class="lc-arrow">-></div>
+        <div class="lc-step">
+          <div class="lc-num">Step 2</div>
+          <div class="lc-text highlight-green">RuleCollector</div>
+          <div class="lc-detail">Agent + Project + Global</div>
+        </div>
+        <div class="lc-arrow">-></div>
+        <div class="lc-step">
+          <div class="lc-num">Step 3</div>
+          <div class="lc-text highlight-green">SkillExpander</div>
+          <div class="lc-detail">Skills -> Prompts + Tools</div>
+        </div>
+        <div class="lc-arrow">-></div>
+        <div class="lc-step" style="border-color: #4a8; background: rgba(74,136,100,0.15);">
+          <div class="lc-num">Output</div>
+          <div class="lc-text" style="color:#7bdb9f">AgentRuntime</div>
+          <div class="lc-detail">Static config, cached</div>
+        </div>
+      </div>
+    </div>
+
+    <hr class="divider">
+
+    <!-- Hot Injection -->
+    <div>
+      <div style="font-size: 12px; font-weight: 600; color: #4a8; margin-bottom: 10px;">
+        HOT INJECTION (per message, runs every turn)
+      </div>
+      <div class="lifecycle">
+        <div class="lc-step">
+          <div class="lc-num">Input</div>
+          <div class="lc-text highlight-green">User Message</div>
+          <div class="lc-detail">Current turn input</div>
+        </div>
+        <div class="lc-arrow">-></div>
+        <div class="lc-step">
+          <div class="lc-num">Step 1</div>
+          <div class="lc-text highlight-green">MemoryInjector</div>
+          <div class="lc-detail">Retrieve by relevance</div>
+        </div>
+        <div class="lc-arrow">-></div>
+        <div class="lc-step">
+          <div class="lc-num">Step 2</div>
+          <div class="lc-text highlight-green">PromptAssembler</div>
+          <div class="lc-detail">Merge static + dynamic</div>
+        </div>
+        <div class="lc-arrow">-></div>
+        <div class="lc-step" style="border-color: #4a8; background: rgba(74,136,100,0.15);">
+          <div class="lc-num">Output</div>
+          <div class="lc-text" style="color:#7bdb9f">TurnContext</div>
+          <div class="lc-detail">This turn's full prompt</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="two-col" style="margin-top: 16px;">
+      <div class="box">
+        <div class="box-label">AgentRuntime (cold output)</div>
+        <div class="box-fields">
+          <div><span class="field">baseSystemPrompt</span> <span class="type">// role + rules + skills</span></div>
+          <div><span class="field">toolSet</span> <span class="type">// filtered & registered tools</span></div>
+          <div><span class="field">modelConfig</span> <span class="type">// provider + model + params</span></div>
+          <div><span class="field">memoryScope</span> <span class="type">// retrieval scope config</span></div>
+          <div><span class="field">maxIterations</span> <span class="type">// safety valve</span></div>
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-label">TurnContext (hot output)</div>
+        <div class="box-fields">
+          <div><span class="field">systemPrompt</span> <span class="type">// base + injected memories</span></div>
+          <div><span class="field">relevantMemories</span> <span class="type">// retrieved this turn</span></div>
+          <div><span class="field">tokenBudget</span> <span class="type">// remaining for history</span></div>
+        </div>
+        <div class="box-desc" style="margin-top: 8px;">
+          PromptAssembler merges AgentRuntime.baseSystemPrompt<br>
+          with MemoryInjector results per turn
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-arrow">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4 L10 16 M6 12 L10 16 L14 12"/></svg>
+      <span class="flow-label">TurnContext feeds into AgentEngine.run()</span>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4 L10 16 M6 12 L10 16 L14 12"/></svg>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 3. Engine Layer -->
+  <!-- ============================================ -->
+  <div class="section layer-engine">
+    <div class="section-title">3. Engine Layer -- core/engine/ (per message, runs in loop)</div>
+    <div class="loop-container">
+      <div class="loop-steps">
+        <div class="loop-step">
+          <div class="step-num" style="background:#5e2a5e; color:#fff;">1</div>
+          <div class="step-content">
+            <div class="step-title">ModelContextBuilder</div>
+            <div class="step-desc">Assemble messages: TurnContext.systemPrompt + conversation history + current user message. Token budget management via ContextCompressor.</div>
+          </div>
+        </div>
+        <div class="loop-step">
+          <div class="step-num" style="background:#5e2a5e; color:#fff;">2</div>
+          <div class="step-content">
+            <div class="step-title">streamText() via Vercel AI SDK + AbortController</div>
+            <div class="step-desc">
+              Call model via provider. Stream tokens to Renderer via EventBus.<br>
+              <span style="color:#db7b7b">AbortController.signal passed to streamText() -- enables user cancel at any point.</span>
+            </div>
+          </div>
+        </div>
+        <div class="loop-step">
+          <div class="step-num" style="background:#5e2a5e; color:#fff;">3</div>
+          <div class="step-content">
+            <div class="step-title">Response Router</div>
+            <div class="step-desc">
+              <strong style="color:#db7bdb">Text only</strong> -> record usage, persist, emit 'turn:complete', exit loop<br>
+              <strong style="color:#db7bdb">Single tool_call</strong> -> go to step 4<br>
+              <strong style="color:#db7bdb">Multiple tool_calls</strong> -> go to step 4 (parallel)
+            </div>
+          </div>
+        </div>
+        <div class="loop-step">
+          <div class="step-num" style="background:#5e2a5e; color:#fff;">4</div>
+          <div class="step-content">
+            <div class="step-title">Tool Executor</div>
+            <div class="step-desc">
+              For each tool_call:<br>
+              &nbsp;&nbsp;ToolRegistry lookup -> <strong style="color:#dbc87b">permission gate</strong> (auto: run / confirm: pause & await / deny: reject) -> execute (with timeout) -> emit events<br>
+              <span style="color:#db7b7b">Parallel: Promise.allSettled() for multiple auto-level tool_calls</span><br>
+              <span style="color:#db7b7b">On error: wrap as ToolResult { isError: true } -> model self-heals</span><br>
+              Append all results to messages -> <strong style="color:#dbc87b">context overflow check</strong> <span class="tag tag-v3">v0.3</span> -> back to step 1
+            </div>
+          </div>
+        </div>
+        <div class="loop-step">
+          <div class="step-num" style="background:#5e2a5e; color:#fff;">5</div>
+          <div class="step-content">
+            <div class="step-title">Turn Finalize</div>
+            <div class="step-desc">
+              On loop exit (any path): record token usage -> batch write messages + usage to DB -> emit exit event.
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="loop-sidebar">
+        <div class="sidebar-box">
+          <div class="sidebar-label" style="color:#db7b7b">AbortController</div>
+          <div class="sidebar-desc">
+            Single AbortController per turn<br>
+            .signal -> streamText()<br>
+            .signal -> tool child_process<br>
+            .signal -> confirm wait promise<br>
+            User cancel -> controller.abort()<br>
+            Propagates to all async ops
+          </div>
+        </div>
+        <div class="sidebar-box">
+          <div class="sidebar-label" style="color:#c9a">Safety Guards</div>
+          <div class="sidebar-desc">
+            max_iterations: 25 (loop cap)<br>
+            tool_timeout: 30s (per tool)<br>
+            model_timeout: 60s (per call)<br>
+            All configurable per Agent
+          </div>
+        </div>
+        <div class="sidebar-box">
+          <div class="sidebar-label" style="color:#c9a">Error Strategy</div>
+          <div class="sidebar-desc">
+            <strong>Tool error</strong>: return error as<br>
+            ToolResult -> model self-heals<br><br>
+            <strong>Model API error</strong>:<br>
+            retry (3x exp backoff)<br>
+            -> fail -> emit 'turn:error'<br>
+            -> persist partial + usage
+          </div>
+        </div>
+        <div class="sidebar-box">
+          <div class="sidebar-label" style="color:#9b9bdb">Context Overflow Guard <span class="tag tag-v3">v0.3</span></div>
+          <div class="sidebar-desc">
+            After each tool result appended:<br>
+            check accumulated tokens<br>
+            > 90% of context_limit?<br>
+            -> force exit loop<br>
+            -> model generates summary<br>
+            &nbsp;&nbsp;of work done so far<br>
+            -> persist as normal turn end<br><br>
+            <span style="color:#666">Simple threshold, no mid-loop<br>
+            compression (too complex).</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 3.5 Confirm Tool Approval Flow (NEW) -->
+  <!-- ============================================ -->
+  <div class="section" style="background: linear-gradient(135deg, #2e2a1a 0%, #3e2e16 100%); border: 1px solid #5e4a2a;">
+    <div class="section-title" style="color: #dbc87b;">3.5 Confirm-Level Tool Approval Flow <span class="tag tag-v3">v0.3 DETAILED</span></div>
+
+    <div class="confirm-flow">
+      <!-- Engine side -->
+      <div class="cf-col" style="border-right: 1px dashed rgba(255,255,255,0.08);">
+        <div class="cf-col-title" style="color: #db7bdb;">Engine (Main Process)</div>
+        <div class="cf-item">
+          <span style="color:#db7bdb">4a.</span> Tool Executor receives tool_call<br>
+          <span style="color:#888">ToolRegistry.get(name) -> check permission level</span>
+        </div>
+        <div class="cf-arrow-down">|</div>
+        <div class="cf-item" style="border-color: #5e4a2a;">
+          <span style="color:#dbc87b">4b.</span> Permission = <strong style="color:#dbc87b">'confirm'</strong><br>
+          <span style="color:#888">Create a Promise + resolver pair, store by callId</span>
+        </div>
+        <div class="cf-arrow-down">|</div>
+        <div class="cf-item">
+          <span style="color:#dbc87b">4c.</span> emit <strong style="color:#db7b7b">tool:confirm</strong> { toolName, args, callId }<br>
+          <span style="color:#888">UI shows approval dialog with tool name + args preview</span>
+        </div>
+        <div class="cf-arrow-down">| await promise (blocks this tool_call)</div>
+        <div class="cf-item" style="border-color: #2a5e3a;">
+          <span style="color:#7bdb9f">4d-YES.</span> Promise resolved (approved = true)<br>
+          <span style="color:#888">-> execute tool normally -> emit tool:result</span>
+        </div>
+        <div class="cf-item" style="border-color: #5e2a2a;">
+          <span style="color:#db7b7b">4d-NO.</span> Promise resolved (approved = false)<br>
+          <span style="color:#888">-> return ToolResult { isError: true,<br>
+          &nbsp;&nbsp;error: 'User denied: [tool_name] with args [summary]' }<br>
+          -> model sees denial, adjusts approach</span>
+        </div>
+        <div class="cf-item" style="border-color: #5e2a2a;">
+          <span style="color:#db7b7b">4d-CANCEL.</span> AbortController.abort() triggered<br>
+          <span style="color:#888">-> Promise rejected -> tool skipped -> turn ends</span>
+        </div>
+      </div>
+
+      <!-- Renderer side -->
+      <div class="cf-col">
+        <div class="cf-col-title" style="color: #db7b7b;">Renderer (UI)</div>
+        <div class="cf-item" style="margin-top: 80px;">
+          Receives <strong style="color:#db7b7b">tool:confirm</strong> event<br>
+          <span style="color:#888">Shows inline approval card:</span>
+        </div>
+        <div class="cf-arrow-down">|</div>
+        <div class="cf-item" style="border-color: #3a3a5e;">
+          <strong style="color:#aaa">Approval Card UI:</strong><br>
+          <span style="color:#888">
+            Tool: WriteFile<br>
+            Path: src/utils/helper.ts<br>
+            Preview: [diff / content snippet]<br>
+            <br>
+            [ Approve ]&nbsp;&nbsp;[ Deny ]&nbsp;&nbsp;[ Always Allow ]
+          </span>
+        </div>
+        <div class="cf-arrow-down">|</div>
+        <div class="cf-item">
+          User clicks button<br>
+          -> emit <strong style="color:#db7b7b">user:confirm</strong> { callId, approved }<br>
+          <span style="color:#888">
+            Approve -> approved: true<br>
+            Deny -> approved: false<br>
+            Always Allow -> approved: true<br>
+            &nbsp;&nbsp;+ update tool permission to 'auto' for this session
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="two-col" style="margin-top: 12px;">
+      <div class="box">
+        <div class="box-label">Parallel Confirm Handling</div>
+        <div class="box-desc" style="line-height: 1.8;">
+          If model returns multiple tool_calls and some are confirm-level:<br><br>
+          1. <strong>Auto tools</strong> execute immediately in parallel<br>
+          2. <strong>Confirm tools</strong> each emit their own tool:confirm<br>
+          3. UI shows multiple approval cards simultaneously<br>
+          4. Each resolved independently via callId matching<br>
+          5. Promise.allSettled() waits for all (auto + confirm) to resolve<br>
+          6. All results appended to messages together
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-label">Timeout on Confirm Wait</div>
+        <div class="box-desc" style="line-height: 1.8;">
+          No timeout on user confirmation.<br>
+          Engine waits indefinitely (this is user's decision).<br><br>
+          Only exits on:<br>
+          - User approves/denies (normal path)<br>
+          - User cancels the entire turn (AbortController)<br>
+          - App closes (turn not persisted, treated as if never happened)<br><br>
+          <span style="color:#888">This is the same UX as Claude Code's permission prompt --<br>
+          the system waits for human decision, no auto-timeout.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 4. Event Bus -->
+  <!-- ============================================ -->
+  <div class="section layer-event">
+    <div class="section-title">4. Event Bus -- Engine <-> Renderer IPC Protocol</div>
+    <div class="boxes">
+      <div class="box">
+        <div class="box-label">Engine -> Renderer (downstream)</div>
+        <div class="box-fields">
+          <div><span class="field">stream:token</span> <span class="type">{ text }</span></div>
+          <div><span class="field">tool:start</span> <span class="type">{ toolName, args, callId }</span></div>
+          <div><span class="field">tool:confirm</span> <span class="type">{ toolName, args, callId }</span></div>
+          <div><span class="field">tool:result</span> <span class="type">{ callId, result, duration }</span></div>
+          <div><span class="field">tool:error</span> <span class="type">{ callId, error }</span></div>
+          <div><span class="field">turn:complete</span> <span class="type">{ messageId, usage }</span> <span class="tag tag-v3">+usage</span></div>
+          <div><span class="field">turn:cancelled</span> <span class="type">{ messageId, partial, usage }</span></div>
+          <div><span class="field">turn:error</span> <span class="type">{ error, partial, usage }</span></div>
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-label">Renderer -> Engine (upstream)</div>
+        <div class="box-fields">
+          <div><span class="field">user:message</span> <span class="type">{ content }</span></div>
+          <div><span class="field">user:cancel</span> <span class="type">{ }</span></div>
+          <div><span class="field">user:confirm</span> <span class="type">{ callId, approved }</span></div>
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-label">Design Principles</div>
+        <div class="box-desc" style="line-height: 1.8">
+          <strong style="color:#db7b7b">Decoupling</strong>: Engine doesn't know about UI<br>
+          <strong style="color:#db7b7b">Streaming</strong>: token-by-token via events, not polling<br>
+          <strong style="color:#db7b7b">Cancel</strong>: user:cancel -> AbortController.abort()<br>
+          <strong style="color:#db7b7b">Approval</strong>: confirm tools pause via Promise,<br>
+          &nbsp;&nbsp;resolved by user:confirm event<br>
+          <strong style="color:#db7b7b">Impl</strong>: Electron IPC (main/renderer), typed events
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="flow">
+    <div class="flow-arrow">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4 L10 16 M6 12 L10 16 L14 12"/></svg>
+      <span class="flow-label">Engine interacts with external services</span>
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 4 L10 16 M6 12 L10 16 L14 12"/></svg>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- 5. External Services -->
+  <!-- ============================================ -->
+  <div class="section layer-external">
+    <div class="section-title">5. External Services</div>
+    <div class="boxes">
+      <div class="box">
+        <div class="box-label highlight-yellow">ProviderRegistry</div>
+        <div class="box-desc">core/providers/<br>Vercel AI SDK adapters<br>OpenAI / Anthropic / Google / Ollama / ...<br><span style="color:#db7b7b">+ retry (3x backoff)</span></div>
+      </div>
+      <div class="box">
+        <div class="box-label highlight-yellow">ToolRegistry</div>
+        <div class="box-desc">core/tools/<br>MCP-compatible interface<br>ReadFile / WriteFile / BashExec / Search / ...<br><span style="color:#db7b7b">+ per-tool timeout + permission level</span></div>
+      </div>
+      <div class="box">
+        <div class="box-label highlight-yellow">MemoryService</div>
+        <div class="box-desc">core/memory/<br>MemoryInjector (hot, per-turn) + MemoryExtractor (async, post-conv)<br>4 layers: short-term / episodic / semantic / procedural</div>
+      </div>
+      <div class="box">
+        <div class="box-label highlight-yellow">SQLite</div>
+        <div class="box-desc">better-sqlite3<br>agents / conversations / messages / memories / rules / ...<br><span style="color:#db7b7b">+ token_usage table</span> <span class="tag tag-v3">v0.3</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- Token Usage Tracking (NEW) -->
+  <!-- ============================================ -->
+  <div class="section" style="background: linear-gradient(135deg, #1a2e2e 0%, #152e28 100%); border: 1px solid #2a5e5e; margin-top: 32px;">
+    <div class="section-title" style="color: #7bdbdb;">Token Usage Tracking <span class="tag tag-v3">v0.3</span></div>
+    <div class="two-col">
+      <div class="box">
+        <div class="box-label">Collection Point</div>
+        <div class="box-desc" style="line-height: 1.8;">
+          Every streamText() call returns <strong style="color:#7bdbdb">usage</strong> object:<br>
+          &nbsp;&nbsp;{ promptTokens, completionTokens, totalTokens }<br><br>
+          One turn may have N model calls (N-1 tool loops + 1 final).<br>
+          Engine accumulates per-turn:<br><br>
+          <span style="font-family: monospace; font-size: 10px; color: #aaa;">
+          turnUsage = {<br>
+          &nbsp;&nbsp;prompt_tokens: sum of all calls,<br>
+          &nbsp;&nbsp;completion_tokens: sum of all calls,<br>
+          &nbsp;&nbsp;model_calls: N,<br>
+          &nbsp;&nbsp;tool_calls: M,<br>
+          &nbsp;&nbsp;provider_id, model_id,<br>
+          &nbsp;&nbsp;conversation_id, created_at<br>
+          }
+          </span>
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-label">Storage & Display</div>
+        <div class="box-desc" style="line-height: 1.8;">
+          <strong style="color:#7bdbdb">DB</strong>: token_usage table (one row per turn)<br>
+          Written in same batch transaction as messages.<br><br>
+
+          <strong style="color:#7bdbdb">Event</strong>: usage included in turn:complete/cancelled/error<br>
+          Renderer can show per-turn token count inline.<br><br>
+
+          <strong style="color:#7bdbdb">MVP Display</strong>: minimal<br>
+          &nbsp;&nbsp;- Per-turn: small token count badge on message<br>
+          &nbsp;&nbsp;- Per-conversation: total in conversation header<br>
+          &nbsp;&nbsp;- Settings: aggregated usage dashboard (later)<br><br>
+
+          <span style="color:#888">No cost calculation in MVP (requires price config<br>
+          per model). Just raw token counts. Cost can be<br>
+          added later as a computed view.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- Context Overflow Detail -->
+  <!-- ============================================ -->
+  <div class="section" style="background: linear-gradient(135deg, #2a1a2e 0%, #251530 100%); border: 1px solid #4a2a5e; margin-top: 16px;">
+    <div class="section-title" style="color: #9b9bdb;">Context Overflow Guard (in-loop) <span class="tag tag-v3">v0.3</span></div>
+    <div class="two-col">
+      <div class="box">
+        <div class="box-label">Detection</div>
+        <div class="box-desc" style="line-height: 1.8;">
+          After step 4 (tool results appended), before looping back to step 1:<br><br>
+          <span style="font-family: monospace; font-size: 10px; color: #aaa;">
+          currentTokens = estimateTokens(allMessages)<br>
+          threshold = agentRuntime.contextLimit * 0.9<br>
+          <br>
+          if (currentTokens > threshold) {<br>
+          &nbsp;&nbsp;// Force graceful exit<br>
+          }
+          </span><br>
+          <span style="color:#888">
+          Token estimation: rough char/4 heuristic is enough here.<br>
+          Doesn't need to be exact -- the 90% threshold leaves<br>
+          ~10% buffer for the final model call.
+          </span>
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-label">Graceful Exit</div>
+        <div class="box-desc" style="line-height: 1.8;">
+          When overflow detected, don't just abort -- do one final model call:<br><br>
+          1. Append a <strong style="color:#9b9bdb">system injection</strong> to messages:<br>
+          &nbsp;&nbsp;<span style="color:#aaa; font-style:italic;">"Context limit approaching. Summarize your progress<br>
+          &nbsp;&nbsp;and what remains to be done. Do NOT call any more tools."</span><br><br>
+          2. Call streamText() one last time (no tools registered)<br>
+          3. Model outputs a summary for the user<br>
+          4. Normal turn finalize (persist + emit turn:complete)<br><br>
+          <span style="color:#888">User sees a clear explanation of what was done<br>
+          and what's left, can continue in next message<br>
+          (which will trigger ContextCompressor on the<br>
+          accumulated history).</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- Cancel Flow Detail -->
+  <!-- ============================================ -->
+  <div class="section" style="background: linear-gradient(135deg, #2e1a1a 0%, #251515 100%); border: 1px solid #4a2a2a; margin-top: 16px;">
+    <div class="section-title" style="color: #db7b7b;">User Cancel Flow</div>
+    <div class="lifecycle">
+      <div class="lc-step">
+        <div class="lc-num">Trigger</div>
+        <div class="lc-text highlight-red">User clicks Stop</div>
+        <div class="lc-detail">Renderer</div>
+      </div>
+      <div class="lc-arrow">-></div>
+      <div class="lc-step">
+        <div class="lc-num">IPC</div>
+        <div class="lc-text highlight-red">user:cancel</div>
+        <div class="lc-detail">Event Bus</div>
+      </div>
+      <div class="lc-arrow">-></div>
+      <div class="lc-step">
+        <div class="lc-num">Abort</div>
+        <div class="lc-text highlight-red">controller.abort()</div>
+        <div class="lc-detail">Cancels all async ops</div>
+      </div>
+      <div class="lc-arrow">-></div>
+      <div class="lc-step">
+        <div class="lc-num">Cleanup</div>
+        <div class="lc-text highlight-red">Collect partial</div>
+        <div class="lc-detail">Streamed tokens + done tools</div>
+      </div>
+      <div class="lc-arrow">-></div>
+      <div class="lc-step">
+        <div class="lc-num">Persist</div>
+        <div class="lc-text highlight-red">Batch write DB</div>
+        <div class="lc-detail">Messages + usage + cancelled flag</div>
+      </div>
+      <div class="lc-arrow">-></div>
+      <div class="lc-step" style="border-color: #4a2a2a;">
+        <div class="lc-num">Done</div>
+        <div class="lc-text highlight-red">turn:cancelled</div>
+        <div class="lc-detail">UI shows partial response</div>
+      </div>
+    </div>
+    <div class="note">Cancellation is clean: AbortController.signal propagates to streamText(), child_process (SIGTERM), and pending confirm Promises. All partial data (streamed text, completed tool results) is preserved. Cancelled turn appears in history as a normal message with [cancelled] indicator.</div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- Error Recovery Detail -->
+  <!-- ============================================ -->
+  <div class="section" style="background: linear-gradient(135deg, #2e2a1a 0%, #252015 100%); border: 1px solid #4a3a1a; margin-top: 16px;">
+    <div class="section-title" style="color: #dbc87b;">Error Recovery Strategy</div>
+    <div class="three-col">
+      <div class="box">
+        <div class="box-label">Tool Execution Error</div>
+        <div class="box-desc" style="line-height: 1.8;">
+          Strategy: <strong style="color:#dbc87b">Model self-heals</strong><br><br>
+          Tool throws / times out<br>
+          -> wrap as ToolResult { isError: true }<br>
+          -> append to messages normally<br>
+          -> model decides: retry / alternative / inform user<br><br>
+          <span style="color:#888">No framework-level retry for tools.</span><br>
+          <span style="color:#888">Model is the decision maker.</span>
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-label">Model API Error</div>
+        <div class="box-desc" style="line-height: 1.8;">
+          Strategy: <strong style="color:#dbc87b">Auto retry + fail fast</strong><br><br>
+          Network error / 5xx / rate limit<br>
+          -> retry up to 3x, exp backoff (1s/2s/4s)<br>
+          -> 429: respect Retry-After header<br>
+          -> all retries failed:<br>
+          &nbsp;&nbsp;emit turn:error<br>
+          &nbsp;&nbsp;persist partial state + usage<br>
+          &nbsp;&nbsp;user sees error, can retry manually<br><br>
+          <span style="color:#888">No auto fallback to different model.</span>
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-label">Tool Timeout</div>
+        <div class="box-desc" style="line-height: 1.8;">
+          Strategy: <strong style="color:#dbc87b">Per-tool timeout + kill</strong><br><br>
+          Default timeouts:<br>
+          &nbsp;&nbsp;ReadFile: 5s<br>
+          &nbsp;&nbsp;WriteFile: 5s<br>
+          &nbsp;&nbsp;BashExec: 30s (configurable)<br>
+          &nbsp;&nbsp;Search: 10s<br><br>
+          Timeout -> kill process<br>
+          -> ToolResult { isError: true }<br>
+          -> model adjusts approach
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- Persistence Strategy -->
+  <!-- ============================================ -->
+  <div class="section" style="background: linear-gradient(135deg, #1a1a2e 0%, #151528 100%); border: 1px solid #2a2a5e; margin-top: 16px;">
+    <div class="section-title" style="color: #7b9fdb;">Message Persistence Strategy</div>
+    <div class="two-col">
+      <div class="box">
+        <div class="box-label">Turn-Level Batch Write</div>
+        <div class="box-desc" style="line-height: 1.8;">
+          During engine loop: all messages stay <strong>in memory</strong><br><br>
+          On turn end (any exit path):<br>
+          &nbsp;&nbsp;- text complete -> batch write<br>
+          &nbsp;&nbsp;- user cancel -> batch write (partial)<br>
+          &nbsp;&nbsp;- context overflow -> batch write (with summary)<br>
+          &nbsp;&nbsp;- max_iterations -> batch write<br>
+          &nbsp;&nbsp;- unrecoverable error -> batch write (partial)<br><br>
+          Single DB transaction:<br>
+          &nbsp;&nbsp;INSERT user_message<br>
+          &nbsp;&nbsp;INSERT assistant_message (may be partial)<br>
+          &nbsp;&nbsp;INSERT tool_call records (0..N)<br>
+          &nbsp;&nbsp;INSERT tool_result records (0..N)<br>
+          &nbsp;&nbsp;INSERT token_usage record <span class="tag tag-v3">v0.3</span><br>
+          &nbsp;&nbsp;UPDATE conversation.updated_at
+        </div>
+      </div>
+      <div class="box">
+        <div class="box-label">Why Turn-Level Batch</div>
+        <div class="box-desc" style="line-height: 1.8;">
+          <strong style="color:#7b9fdb">Simpler</strong>: one transaction, no partial state bugs<br><br>
+          <strong style="color:#7b9fdb">Faster</strong>: SQLite single transaction >> many small writes<br><br>
+          <strong style="color:#7b9fdb">Consistent</strong>: turn is either fully saved or saved as<br>
+          partial with exit_status flag<br><br>
+          <strong style="color:#7b9fdb">Acceptable risk</strong>: worst case, app crashes mid-turn,<br>
+          lose one turn. Previous turns are safe.<br><br>
+          <span style="color:#888">Same tradeoff as Claude Code, Cursor, etc.</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- Built-in Agents -->
+  <!-- ============================================ -->
+  <div class="section" style="background: linear-gradient(135deg, #1a1a2e 0%, #1a2e2e 100%); border: 1px solid #2a4a5e; margin-top: 32px;">
+    <div class="section-title" style="color: #7bbfdb;">Built-in Agents (MVP)</div>
+    <div class="boxes">
+      <div class="box" style="border-color: #2a4a5e;">
+        <div class="box-label">General Assistant</div>
+        <div class="box-desc">Default agent<br>All basic tools<br>General coding help</div>
+      </div>
+      <div class="box" style="border-color: #2a4a5e;">
+        <div class="box-label">Frontend Dev</div>
+        <div class="box-desc">React/Vue/CSS expertise<br>UI-focused rules<br>Component patterns</div>
+      </div>
+      <div class="box" style="border-color: #2a4a5e;">
+        <div class="box-label">Backend Dev</div>
+        <div class="box-desc">API/DB/Server expertise<br>Architecture rules<br>Security patterns</div>
+      </div>
+      <div class="box" style="border-color: #2a4a5e;">
+        <div class="box-label">Code Review</div>
+        <div class="box-desc">Review-focused prompt<br>Read-only tools<br>Quality & security checks</div>
+      </div>
+    </div>
+    <div style="margin-top: 12px; font-size: 11px; color: #888; text-align: center;">
+      + User-created custom Agents (same DB structure, dynamic creation via settings UI)
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- Data Flow Summary -->
+  <!-- ============================================ -->
+  <div class="section" style="background: linear-gradient(135deg, #151515 0%, #1a1a1a 100%); border: 1px solid #333; margin-top: 32px;">
+    <div class="section-title" style="color: #aaa;">Data Flow Summary</div>
+    <div style="font-family: 'SF Mono', Monaco, monospace; font-size: 12px; line-height: 2.4; color: #999; padding: 8px;">
+      <strong style="color:#666">Entry:</strong>
+      <span style="color:#7bdbdb">New conv</span><span style="color:#555"> | </span><span style="color:#7bdbdb">Resume conv</span>
+      <span style="color:#555"> --> </span>
+      <span style="color:#7bdb9f">Cold Assembly</span>
+      <span style="color:#555"> --> </span>
+      <span style="color:#7bdb9f">AgentRuntime</span>
+      <span style="color:#555"> (cached)</span>
+      <br>
+      <strong style="color:#666">Hot:</strong>
+      <span style="color:#7bdb9f">AgentRuntime</span>
+      <span style="color:#555"> + </span>
+      <span style="color:#dbc87b">MemoryInjector(userMsg)</span>
+      <span style="color:#555"> --> </span>
+      <span style="color:#7bdb9f">PromptAssembler</span>
+      <span style="color:#555"> --> </span>
+      <span style="color:#7bdb9f">TurnContext</span>
+      <span style="color:#555"> --> </span>
+      <span style="color:#db7bdb">AgentEngine</span>
+      <br>
+      <strong style="color:#666">Loop:</strong>
+      <span style="color:#db7bdb">ContextBuild</span>
+      <span style="color:#555"> --> </span>
+      <span style="color:#dbc87b">streamText()</span>
+      <span style="color:#555"> --> </span>
+      <span style="color:#db7bdb">Router</span>
+      <span style="color:#555"> --> </span>
+      <span style="color:#dbc87b">ToolExec</span>
+      <span style="color:#555"> (</span><span style="color:#dbc87b">auto</span><span style="color:#555"> | </span><span style="color:#dbc87b">confirm->await</span><span style="color:#555"> | </span><span style="color:#db7b7b">deny</span><span style="color:#555">)</span>
+      <span style="color:#555"> --> </span>
+      <span style="color:#9b9bdb">overflow?</span>
+      <span style="color:#555"> --> </span>
+      <span style="color:#db7bdb">Loop</span>
+      <br>
+      <strong style="color:#666">Exit:</strong>
+      <span style="color:#db7bdb">text</span>
+      <span style="color:#555"> | </span>
+      <span style="color:#db7b7b">cancel</span>
+      <span style="color:#555"> | </span>
+      <span style="color:#9b9bdb">overflow</span>
+      <span style="color:#555"> | </span>
+      <span style="color:#dbc87b">max_iter</span>
+      <span style="color:#555"> | </span>
+      <span style="color:#db7b7b">error</span>
+      <span style="color:#555"> --> </span>
+      <span style="color:#7b9fdb">batch write (msgs + usage)</span>
+      <span style="color:#555"> --> </span>
+      <span style="color:#db7b7b">emit event</span>
+      <br>
+      <strong style="color:#666">Post:</strong>
+      <span style="color:#db7bdb">Conv end</span>
+      <span style="color:#555"> --[async]--> </span>
+      <span style="color:#dbc87b">MemoryExtractor</span>
+      <span style="color:#555"> --> </span>
+      <span style="color:#7b9fdb">DB:memories</span>
+    </div>
+  </div>
+
+  <!-- ============================================ -->
+  <!-- Changelog -->
+  <!-- ============================================ -->
+  <div class="section" style="background: #111; border: 1px solid #222; margin-top: 32px;">
+    <div class="section-title" style="color: #666;">Changelog</div>
+    <div style="font-size: 11px; color: #777; line-height: 2;">
+      <strong style="color:#9b9bdb">v0.3</strong> (current):<br>
+      &nbsp;&nbsp;1. Added Conversation Entry Points -- new vs resume, both converge to same AgentRuntime<br>
+      &nbsp;&nbsp;2. Detailed Confirm-Level Tool Approval -- Promise-based pause, Engine/Renderer interaction, deny as ToolResult error, parallel handling<br>
+      &nbsp;&nbsp;3. Added Context Overflow Guard -- 90% threshold check after each tool result, graceful exit with summary generation<br>
+      &nbsp;&nbsp;4. Added Token Usage Tracking -- per-turn accumulation, token_usage table, usage in events, MVP badge display<br>
+      &nbsp;&nbsp;5. Updated Event Bus -- turn:cancelled as separate event, usage field in all exit events<br>
+      &nbsp;&nbsp;6. Updated Persistence -- token_usage in batch transaction, context overflow as exit path<br>
+      <br>
+      <strong style="color:#dbc87b">v0.2</strong>:<br>
+      &nbsp;&nbsp;Assembly Cold/Hot split, AbortController, Event Bus layer, parallel tools, error recovery, tool timeout, batch persistence, confirm flow<br>
+      <br>
+      <strong style="color:#888">v0.1</strong>:<br>
+      &nbsp;&nbsp;Initial architecture -- Config/Assembly/Engine/External 4-layer design
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

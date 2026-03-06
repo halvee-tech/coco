@@ -1,0 +1,33 @@
+{
+  "name": "coco",
+  "version": "0.1.0",
+  "description": "AI 编码协作平台",
+  "main": "out/main/main.js",
+  "scripts": {
+    "dev": "unset ELECTRON_RUN_AS_NODE && electron-vite dev",
+    "build": "unset ELECTRON_RUN_AS_NODE && electron-vite build",
+    "preview": "unset ELECTRON_RUN_AS_NODE && electron-vite preview",
+    "postinstall": "electron-builder install-app-deps"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "clsx": "^2.1.1",
+    "tailwind-merge": "^3.0.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12",
+    "@types/react": "^19.0.10",
+    "@types/react-dom": "^19.0.4",
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "electron": "^34.2.0",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^3.0.0",
+    "postcss": "^8.5.3",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "tailwindcss": "^3.4.17",
+    "typescript": "^5.7.3",
+    "vite": "^6.2.0"
+  }
+}

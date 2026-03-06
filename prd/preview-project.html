@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CoCode - Project Space Demo</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>* { box-sizing: border-box; margin: 0; padding: 0; } body { overflow: hidden; }</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState } = React;
+
+// ── Theme ──────────────────────────────────────────────
+const D = {
+  bg: "#0a0a0a", sidebar: "#111", surface: "#111", card: "#1a1a1a",
+  border: "#222", borderSoft: "#1a1a1a", text: "#ffffff", textSub: "#888",
+  textMuted: "#3a3a3a", accent: "#ffffff", accentText: "#000",
+  accentSoft: "#1e1e1e", inputBg: "#0d0d0d",
+  green: "#3dba6a", greenBg: "#0a1f10", greenBorder: "#153020",
+  red: "#f87171", redBg: "#1e0808", redBorder: "#3a1010",
+  amber: "#c09040", amberBg: "#171200", amberBorder: "#251c00",
+  blue: "#60a5fa", blueBg: "#0a1428", blueBorder: "#152540",
+  purple: "#a78bfa", purpleBg: "#140e28", purpleBorder: "#201840",
+  groupLabel: "#444",
+};
+const L = {
+  bg: "#f5f5f3", sidebar: "#fff", surface: "#fff", card: "#f5f5f3",
+  border: "#e8e8e4", borderSoft: "#efefec", text: "#111", textSub: "#777",
+  textMuted: "#ccc", accent: "#111", accentText: "#fff",
+  accentSoft: "#f0f0ee", inputBg: "#eeeeec",
+  green: "#1a9445", greenBg: "#f0fff5", greenBorder: "#c8ecd8",
+  red: "#e05555", redBg: "#fff0f0", redBorder: "#f0d0d0",
+  amber: "#9a7030", amberBg: "#fffbf0", amberBorder: "#f0e5c0",
+  blue: "#3b82f6", blueBg: "#f0f5ff", blueBorder: "#c8d8f0",
+  purple: "#7c3aed", purpleBg: "#f5f0ff", purpleBorder: "#d8c8f0",
+  groupLabel: "#bbb",
+};
+
+const PROJECT = {
+  id: "p-001", name: "E-Commerce Platform", desc: "电商平台全栈开发",
+  tech: ["React", "Node.js", "PostgreSQL"], status: "active",
+};
+
+const REQUIREMENTS = [
+  { id: "req-001", title: "用户注册与登录", priority: "high", status: "done", tasks: 3, tasksDone: 3 },
+  { id: "req-002", title: "商品列表与搜索", priority: "high", status: "in_progress", tasks: 5, tasksDone: 2 },
+  { id: "req-003", title: "购物车功能", priority: "medium", status: "confirmed", tasks: 4, tasksDone: 0 },
+  { id: "req-004", title: "订单管理", priority: "critical", status: "draft", tasks: 0, tasksDone: 0 },
+];
+
+const TECH_DESIGNS = [
+  { id: "td-001", reqId: "req-002", title: "商品列表技术方案", status: "confirmed", agent: "架构师 AI", version: 2 },
+  { id: "td-002", reqId: "req-003", title: "购物车技术方案", status: "draft", agent: "架构师 AI", version: 1 },
+];
+
+const TASKS = [
+  { id: "t-001", title: "实现商品列表 API", agent: "后端 AI", status: "success", reqTitle: "商品列表与搜索", duration: "2m 30s" },
+  { id: "t-002", title: "商品搜索接口", agent: "后端 AI", status: "running", reqTitle: "商品列表与搜索", duration: "—" },
+  { id: "t-003", title: "商品卡片组件", agent: "前端 AI", status: "queued", reqTitle: "商品列表与搜索", duration: "—" },
+  { id: "t-004", title: "搜索筛选组件", agent: "前端 AI", status: "pending", reqTitle: "商品列表与搜索", duration: "—" },
+  { id: "t-005", title: "列表分页逻辑", agent: "后端 AI", status: "pending", reqTitle: "商品列表与搜索", duration: "—" },
+  { id: "t-006", title: "购物车数据模型", agent: "后端 AI", status: "pending", reqTitle: "购物车功能", duration: "—" },
+];
+
+const REVIEWS = [
+  { id: "r-001", taskTitle: "实现商品列表 API", agent: "Review AI", status: "done", issues: { critical: 0, warning: 2, info: 1 } },
+  { id: "r-002", taskTitle: "用户注册接口", agent: "Review AI", status: "done", issues: { critical: 1, warning: 1, info: 0 } },
+];
+
+const REVIEW_DETAIL = {
+  id: "r-002", taskTitle: "用户注册接口", agent: "Review AI", status: "done",
+  issues: [
+    { id: "ri-001", severity: "critical", file: "src/api/auth.ts", line: "42-58", desc: "密码未经 bcrypt 哈希直接存入数据库", suggestion: "使用 bcrypt.hash(password, 10) 处理后再存储", rule: "安全规范 #003", status: "open" },
+    { id: "ri-002", severity: "warning", file: "src/api/auth.ts", line: "15", desc: "缺少请求频率限制，存在暴力破解风险", suggestion: "添加 rate-limiter 中间件，限制每 IP 每分钟 5 次", rule: "安全规范 #007", status: "fixed" },
+  ],
+};
+
+const MOCK_CHAT = [
+  { role: "user", text: "我需要一个商品列表页面，支持搜索、筛选和分页" },
+  { role: "ai", text: "好的，我来帮你梳理这个需求。确认几个关键点：\n\n1. 搜索：按商品名称模糊搜索，是否需要支持多字段（如描述、SKU）？\n2. 筛选：需要哪些筛选维度？价格区间、分类、上架状态？\n3. 分页：偏向传统分页还是无限滚动？\n4. 排序：默认排序规则？是否支持用户切换排序？" },
+  { role: "user", text: "搜索只需名称。筛选要分类和价格区间。传统分页，每页 20 条。默认按创建时间倒序" },
+  { role: "ai", text: "明确了，我已生成结构化需求文档，请在右侧确认。" },
+];
+
+const MOCK_DOC = "# 商品列表与搜索\n\n## 功能描述\n实现商品列表页面，支持搜索、筛选和分页功能。\n\n## 详细需求\n\n### 搜索\n- 按商品名称模糊搜索\n- 输入防抖 300ms\n\n### 筛选\n- 分类筛选：下拉多选，支持全部分类\n- 价格区间：最低价 ~ 最高价，数字输入\n\n### 列表展示\n- 卡片式布局，每行 4 张\n- 展示：商品图、名称、价格、分类标签\n\n### 分页\n- 传统分页，每页 20 条\n- 底部页码导航\n\n### 排序\n- 默认：创建时间倒序\n- 用户不可切换（v1）\n\n## 验收标准\n- [ ] 搜索输入后 300ms 内返回结果\n- [ ] 筛选条件可组合使用\n- [ ] 空结果时显示空状态\n- [ ] 分页正确跳转";
+
+const PROJECT_NAV = [
+  { id: "requirements", label: "需求", icon: "◊", count: 4 },
+  { id: "designs", label: "技术方案", icon: "△", count: 2 },
+  { id: "tasks", label: "任务", icon: "▢", count: 6 },
+  { id: "reviews", label: "Review", icon: "◇", count: 2 },
+  { id: "issues", label: "Issue", icon: "!", count: 1 },
+  { id: "rules", label: "规范", icon: "≡", count: 8 },
+];
+
+const statusConfig = (t) => ({
+  draft:       { label: "草稿",   bg: t.accentSoft, color: t.textSub, border: t.border },
+  confirmed:   { label: "已确认", bg: t.blueBg,     color: t.blue,    border: t.blueBorder },
+  in_progress: { label: "进行中", bg: t.amberBg,    color: t.amber,   border: t.amberBorder },
+  done:        { label: "已完成", bg: t.greenBg,    color: t.green,   border: t.greenBorder },
+  cancelled:   { label: "已取消", bg: t.redBg,      color: t.red,     border: t.redBorder },
+  pending:     { label: "待执行", bg: t.accentSoft, color: t.textSub, border: t.border },
+  queued:      { label: "排队中", bg: t.purpleBg,   color: t.purple,  border: t.purpleBorder },
+  running:     { label: "执行中", bg: t.amberBg,    color: t.amber,   border: t.amberBorder },
+  success:     { label: "成功",   bg: t.greenBg,    color: t.green,   border: t.greenBorder },
+  failed:      { label: "失败",   bg: t.redBg,      color: t.red,     border: t.redBorder },
+  open:        { label: "待处理", bg: t.redBg,      color: t.red,     border: t.redBorder },
+  fixed:       { label: "已修复", bg: t.greenBg,    color: t.green,   border: t.greenBorder },
+  ignored:     { label: "已忽略", bg: t.accentSoft, color: t.textSub, border: t.border },
+  issue:       { label: "转 Issue", bg: t.amberBg,  color: t.amber,   border: t.amberBorder },
+});
+
+const priorityConfig = (t) => ({
+  critical: { label: "紧急", bg: t.redBg,      color: t.red,     border: t.redBorder },
+  high:     { label: "高",   bg: t.amberBg,    color: t.amber,   border: t.amberBorder },
+  medium:   { label: "中",   bg: t.blueBg,     color: t.blue,    border: t.blueBorder },
+  low:      { label: "低",   bg: t.accentSoft, color: t.textSub, border: t.border },
+});
+
+const severityConfig = (t) => ({
+  critical: { label: "严重", bg: t.redBg,   color: t.red,   border: t.redBorder },
+  warning:  { label: "警告", bg: t.amberBg, color: t.amber, border: t.amberBorder },
+  info:     { label: "信息", bg: t.blueBg,  color: t.blue,  border: t.blueBorder },
+});
+
+const Badge = ({ config }) => (
+  <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, fontWeight: 600, background: config.bg, color: config.color, border: "1px solid " + config.border, whiteSpace: "nowrap" }}>
+    {config.label}
+  </span>
+);
+
+function App() {
+  const [dark, setDark] = useState(true);
+  const [activeNav, setActiveNav] = useState("requirements");
+  const [showChat, setShowChat] = useState(true);
+  const [showDoc, setShowDoc] = useState(true);
+  const [input, setInput] = useState("");
+  const [selectedReview, setSelectedReview] = useState(null);
+
+  const t = dark ? D : L;
+  const sc = statusConfig(t);
+  const pc = priorityConfig(t);
+  const sevc = severityConfig(t);
+
+  const AppSidebar = () => (
+    <div style={{ width: 224, background: t.sidebar, borderRight: "1px solid " + t.border, display: "flex", flexDirection: "column", flexShrink: 0 }}>
+      <div style={{ padding: "16px 14px", borderBottom: "1px solid " + t.borderSoft, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ width: 28, height: 28, background: t.accent, borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center" }}>
+            <span style={{ color: t.accentText, fontSize: 11, fontWeight: 900, letterSpacing: -1 }}>co</span>
+          </div>
+          <span style={{ fontWeight: 700, fontSize: 15, letterSpacing: -0.5 }}>Coco</span>
+        </div>
+        <button onClick={() => setDark(!dark)} style={{ width: 44, height: 22, borderRadius: 99, border: "1px solid " + t.border, background: t.accentSoft, cursor: "pointer", position: "relative", padding: 0, flexShrink: 0 }}>
+          <div style={{ width: 16, height: 16, borderRadius: "50%", background: t.accent, position: "absolute", top: 2, left: dark ? 24 : 2, transition: "left 0.2s" }} />
+        </button>
+      </div>
+      <div style={{ padding: "14px 14px 10px" }}>
+        <div style={{ fontSize: 10, color: t.textMuted, letterSpacing: 0.6, fontWeight: 600, marginBottom: 8, textTransform: "uppercase" }}>Project</div>
+        <div style={{ fontSize: 14, fontWeight: 700, letterSpacing: -0.3, marginBottom: 4 }}>{PROJECT.name}</div>
+        <div style={{ fontSize: 11, color: t.textSub, marginBottom: 10 }}>{PROJECT.desc}</div>
+        <div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>
+          {PROJECT.tech.map(s => (
+            <span key={s} style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: t.accentSoft, color: t.textSub, border: "1px solid " + t.border }}>{s}</span>
+          ))}
+        </div>
+      </div>
+      <div style={{ height: 1, background: t.borderSoft, margin: "0 14px" }} />
+      <div style={{ flex: 1, padding: "8px 8px", overflow: "auto" }}>
+        {PROJECT_NAV.map(item => (
+          <button key={item.id} onClick={() => { setActiveNav(item.id); setSelectedReview(null); }} style={{
+            width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: 8, marginBottom: 2,
+            background: activeNav === item.id ? t.card : "none",
+            border: "1px solid " + (activeNav === item.id ? t.border : "transparent"),
+            cursor: "pointer", fontFamily: "inherit",
+            color: activeNav === item.id ? t.text : t.textSub,
+            fontSize: 13, fontWeight: activeNav === item.id ? 600 : 400,
+            display: "flex", alignItems: "center", justifyContent: "space-between",
+          }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span style={{ fontSize: 12, opacity: 0.5, width: 14, textAlign: "center" }}>{item.icon}</span>
+              {item.label}
+            </div>
+            <span style={{ fontSize: 10, color: t.textMuted, background: t.accentSoft, padding: "1px 6px", borderRadius: 10, border: "1px solid " + t.border }}>{item.count}</span>
+          </button>
+        ))}
+      </div>
+      <div style={{ height: 1, background: t.borderSoft }} />
+      <div style={{ padding: 8 }}>
+        <button style={{ width: "100%", textAlign: "left", padding: "8px 10px", borderRadius: 8, background: "none", border: "1px solid transparent", cursor: "pointer", fontFamily: "inherit", color: t.textSub, fontSize: 13, display: "flex", alignItems: "center", gap: 8 }}>
+          <span>←</span> 返回首页
+        </button>
+        <div style={{ padding: "8px 10px", display: "flex", alignItems: "center", gap: 8, marginTop: 2 }}>
+          <div style={{ width: 24, height: 24, borderRadius: "50%", background: t.accent, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10, color: t.accentText, fontWeight: 700 }}>张</div>
+          <span style={{ fontSize: 12, color: t.textSub, fontWeight: 500 }}>张三</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const ChatPanel = () => (
+    <div style={{ flex: 1, minWidth: 320, display: "flex", flexDirection: "column", borderRight: showDoc ? "1px solid " + t.border : "none" }}>
+      <div style={{ padding: "10px 16px", borderBottom: "1px solid " + t.border, display: "flex", alignItems: "center", justifyContent: "space-between", background: t.surface }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 13, fontWeight: 600 }}>AI PM</span>
+          <span style={{ fontSize: 11, color: t.textSub }}>· 需求对话</span>
+        </div>
+        <button onClick={() => setShowDoc(!showDoc)} style={{ fontSize: 11, padding: "3px 10px", borderRadius: 6, border: "1px solid " + t.border, background: showDoc ? t.accent : "none", color: showDoc ? t.accentText : t.textSub, cursor: "pointer", fontFamily: "inherit" }}>
+          {"文档 " + (showDoc ? "◂" : "▸")}
+        </button>
+      </div>
+      <div style={{ flex: 1, overflow: "auto", padding: "20px 16px", display: "flex", flexDirection: "column", gap: 16 }}>
+        {MOCK_CHAT.map((msg, i) => (
+          <div key={i} style={{ display: "flex", justifyContent: msg.role === "user" ? "flex-end" : "flex-start" }}>
+            <div style={{
+              maxWidth: "85%", padding: "10px 14px",
+              borderRadius: msg.role === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
+              background: msg.role === "user" ? t.accent : t.card,
+              color: msg.role === "user" ? t.accentText : t.text,
+              fontSize: 13, lineHeight: 1.8, whiteSpace: "pre-line",
+              border: msg.role === "ai" ? "1px solid " + t.border : "none",
+            }}>
+              {msg.text}
+            </div>
+          </div>
+        ))}
+        <div style={{ display: "flex", justifyContent: "center", padding: "8px 0" }}>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button style={{ fontSize: 12, padding: "6px 20px", borderRadius: 8, border: "none", background: t.green, color: "#fff", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>确认需求</button>
+            <button style={{ fontSize: 12, padding: "6px 20px", borderRadius: 8, border: "1px solid " + t.border, background: "none", color: t.textSub, cursor: "pointer", fontFamily: "inherit" }}>继续修改</button>
+          </div>
+        </div>
+      </div>
+      <div style={{ padding: "12px 16px", borderTop: "1px solid " + t.border, background: t.surface }}>
+        <div style={{ display: "flex", gap: 8, background: t.card, border: "1px solid " + t.border, borderRadius: 10, padding: "9px 12px" }}>
+          <input value={input} onChange={e => setInput(e.target.value)} placeholder="继续对话..."
+            style={{ flex: 1, background: "none", border: "none", outline: "none", fontSize: 13, color: t.text, fontFamily: "inherit" }} />
+          <button style={{ width: 26, height: 26, borderRadius: 6, border: "none", cursor: "pointer", background: input ? t.accent : t.accentSoft, color: input ? t.accentText : t.textSub, fontSize: 14, display: "flex", alignItems: "center", justifyContent: "center" }}>↑</button>
+        </div>
+      </div>
+    </div>
+  );
+
+  const DocPanel = () => (
+    <div style={{ width: 380, flexShrink: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div style={{ padding: "10px 16px", borderBottom: "1px solid " + t.border, display: "flex", alignItems: "center", justifyContent: "space-between", background: t.surface }}>
+        <span style={{ fontSize: 13, fontWeight: 600 }}>需求文档</span>
+        <div style={{ display: "flex", gap: 6 }}>
+          <Badge config={sc.draft} />
+          <button style={{ fontSize: 11, padding: "3px 10px", borderRadius: 6, border: "1px solid " + t.border, background: "none", color: t.textSub, cursor: "pointer", fontFamily: "inherit" }}>编辑</button>
+        </div>
+      </div>
+      <div style={{ flex: 1, overflow: "auto", padding: "20px 16px" }}>
+        <div style={{ fontSize: 13, lineHeight: 2, color: t.text, whiteSpace: "pre-line" }}>
+          {MOCK_DOC.split("\n").map((line, i) => {
+            if (line.startsWith("# ")) return <div key={i} style={{ fontSize: 18, fontWeight: 700, marginBottom: 12, marginTop: i > 0 ? 20 : 0, letterSpacing: -0.5 }}>{line.slice(2)}</div>;
+            if (line.startsWith("## ")) return <div key={i} style={{ fontSize: 15, fontWeight: 600, marginBottom: 8, marginTop: 20, letterSpacing: -0.3 }}>{line.slice(3)}</div>;
+            if (line.startsWith("### ")) return <div key={i} style={{ fontSize: 13, fontWeight: 600, marginBottom: 6, marginTop: 14 }}>{line.slice(4)}</div>;
+            if (line.startsWith("- [ ] ")) return <div key={i} style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}><div style={{ width: 14, height: 14, borderRadius: 3, border: "1px solid " + t.border, flexShrink: 0 }} /><span style={{ color: t.textSub, fontSize: 12 }}>{line.slice(6)}</span></div>;
+            if (line.startsWith("- ")) return <div key={i} style={{ paddingLeft: 12, marginBottom: 3, fontSize: 12, color: t.textSub }}>{"· " + line.slice(2)}</div>;
+            if (line.trim() === "") return <div key={i} style={{ height: 8 }} />;
+            return <div key={i} style={{ fontSize: 13, color: t.textSub, marginBottom: 4 }}>{line}</div>;
+          })}
+        </div>
+      </div>
+    </div>
+  );
+
+  const RequirementsPage = () => (
+    <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      {showChat && <ChatPanel />}
+      {showDoc && <DocPanel />}
+      {!showChat && !showDoc && (
+        <div style={{ flex: 1, overflow: "auto", padding: "24px 28px" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+            <div>
+              <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: -0.5, marginBottom: 4 }}>需求列表</div>
+              <div style={{ fontSize: 12, color: t.textSub }}>由 AI PM 多轮对话生成，人工确认后进入技术方案阶段</div>
+            </div>
+            <button style={{ fontSize: 12, padding: "6px 16px", borderRadius: 8, border: "none", background: t.accent, color: t.accentText, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>+ 新建需求</button>
+          </div>
+          {REQUIREMENTS.map(req => (
+            <div key={req.id} style={{ background: t.card, border: "1px solid " + t.border, borderRadius: 10, padding: "14px 18px", marginBottom: 8, cursor: "pointer" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                  <span style={{ fontWeight: 600, fontSize: 14 }}>{req.title}</span>
+                  <Badge config={pc[req.priority]} />
+                  <Badge config={sc[req.status]} />
+                </div>
+                <span style={{ fontSize: 11, color: t.textSub }}>{req.tasksDone}/{req.tasks} 任务</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const TasksPage = () => (
+    <div style={{ flex: 1, overflow: "auto", padding: "24px 28px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: -0.5, marginBottom: 4 }}>任务列表</div>
+          <div style={{ fontSize: 12, color: t.textSub }}>由技术方案拆解生成，Agent 异步并行执行，文件锁防冲突</div>
+        </div>
+        <div style={{ display: "flex", gap: 4 }}>
+          {[
+            { label: "执行中", count: 1, color: t.amber },
+            { label: "排队", count: 1, color: t.purple },
+            { label: "待执行", count: 3, color: t.textSub },
+            { label: "完成", count: 1, color: t.green },
+          ].map(s => (
+            <span key={s.label} style={{ fontSize: 10, padding: "2px 8px", borderRadius: 20, background: t.accentSoft, border: "1px solid " + t.border, display: "flex", alignItems: "center", gap: 4 }}>
+              <span style={{ width: 6, height: 6, borderRadius: "50%", background: s.color }} />
+              <span style={{ color: t.textSub }}>{s.count}</span>
+            </span>
+          ))}
+        </div>
+      </div>
+      <div style={{ background: t.card, border: "1px solid " + t.border, borderRadius: 10, overflow: "hidden" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 100px 80px", padding: "10px 18px", borderBottom: "1px solid " + t.border, fontSize: 10, color: t.textMuted, textTransform: "uppercase", letterSpacing: 0.6, fontWeight: 600 }}>
+          <span>任务</span><span>来源需求</span><span>Agent</span><span>状态</span><span>耗时</span>
+        </div>
+        {TASKS.map((task, i) => (
+          <div key={task.id} style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 100px 80px", padding: "12px 18px", borderBottom: i < TASKS.length - 1 ? "1px solid " + t.borderSoft : "none", alignItems: "center", cursor: "pointer" }}>
+            <span style={{ fontSize: 13, fontWeight: 500 }}>{task.title}</span>
+            <span style={{ fontSize: 11, color: t.textSub, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.reqTitle}</span>
+            <span style={{ fontSize: 11, color: t.textSub }}>{task.agent}</span>
+            <Badge config={sc[task.status]} />
+            <span style={{ fontSize: 11, color: t.textMuted }}>{task.duration}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+
+  const ReviewsPage = () => (
+    <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+      <div style={{ width: selectedReview ? 320 : "100%", flexShrink: 0, overflow: "auto", padding: "24px 28px", borderRight: selectedReview ? "1px solid " + t.border : "none" }}>
+        <div style={{ marginBottom: 20 }}>
+          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: -0.5, marginBottom: 4 }}>Review</div>
+          <div style={{ fontSize: 12, color: t.textSub }}>独立 Review AI 按规范库逐条检查，问题分级处理</div>
+        </div>
+        {REVIEWS.map(r => (
+          <button key={r.id} onClick={() => setSelectedReview(r.id === selectedReview ? null : r.id)}
+            style={{
+              width: "100%", textAlign: "left", background: selectedReview === r.id ? t.accentSoft : t.card,
+              border: "1px solid " + (selectedReview === r.id ? t.accent : t.border),
+              borderRadius: 10, padding: "14px 18px", marginBottom: 8, cursor: "pointer", fontFamily: "inherit",
+            }}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+              <span style={{ fontWeight: 600, fontSize: 13, color: t.text }}>{r.taskTitle}</span>
+              <Badge config={sc[r.status]} />
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              <span style={{ fontSize: 11, color: t.textSub }}>{r.agent}</span>
+              <span style={{ color: t.textMuted }}>·</span>
+              <div style={{ display: "flex", gap: 4 }}>
+                {r.issues.critical > 0 && <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: t.redBg, color: t.red, border: "1px solid " + t.redBorder }}>{r.issues.critical} 严重</span>}
+                {r.issues.warning > 0 && <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: t.amberBg, color: t.amber, border: "1px solid " + t.amberBorder }}>{r.issues.warning} 警告</span>}
+                {r.issues.info > 0 && <span style={{ fontSize: 10, padding: "1px 6px", borderRadius: 10, background: t.blueBg, color: t.blue, border: "1px solid " + t.blueBorder }}>{r.issues.info} 信息</span>}
+              </div>
+            </div>
+          </button>
+        ))}
+      </div>
+      {selectedReview && (
+        <div style={{ flex: 1, overflow: "auto", padding: "24px 28px" }}>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, letterSpacing: -0.4, marginBottom: 4 }}>{REVIEW_DETAIL.taskTitle}</div>
+            <div style={{ fontSize: 12, color: t.textSub }}>{REVIEW_DETAIL.agent} · {REVIEW_DETAIL.issues.length} 个问题</div>
+          </div>
+          {REVIEW_DETAIL.issues.map(issue => (
+            <div key={issue.id} style={{ background: t.card, border: "1px solid " + t.border, borderRadius: 10, padding: "16px 18px", marginBottom: 10 }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 }}>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <Badge config={sevc[issue.severity]} />
+                  <Badge config={sc[issue.status]} />
+                </div>
+                <span style={{ fontSize: 10, color: t.textMuted, background: t.accentSoft, padding: "2px 8px", borderRadius: 20, border: "1px solid " + t.border }}>{issue.rule}</span>
+              </div>
+              <div style={{ fontSize: 11, color: t.textSub, marginBottom: 8, fontFamily: "monospace", background: t.accentSoft, padding: "4px 10px", borderRadius: 6, border: "1px solid " + t.border, display: "inline-block" }}>
+                {issue.file}:{issue.line}
+              </div>
+              <div style={{ fontSize: 13, lineHeight: 1.7, marginBottom: 10 }}>{issue.desc}</div>
+              <div style={{ fontSize: 12, color: t.textSub, padding: "10px 12px", background: t.greenBg, border: "1px solid " + t.greenBorder, borderRadius: 8, lineHeight: 1.6 }}>
+                <span style={{ fontWeight: 600, color: t.green, fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>修复建议</span>
+                <div style={{ marginTop: 4 }}>{issue.suggestion}</div>
+              </div>
+              {issue.status === "open" && (
+                <div style={{ display: "flex", gap: 6, marginTop: 12 }}>
+                  <button style={{ fontSize: 11, padding: "4px 12px", borderRadius: 6, border: "none", background: t.green, color: "#fff", cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>自动修复</button>
+                  <button style={{ fontSize: 11, padding: "4px 12px", borderRadius: 6, border: "1px solid " + t.amberBorder, background: t.amberBg, color: t.amber, cursor: "pointer", fontFamily: "inherit" }}>转 Issue</button>
+                  <button style={{ fontSize: 11, padding: "4px 12px", borderRadius: 6, border: "1px solid " + t.border, background: "none", color: t.textSub, cursor: "pointer", fontFamily: "inherit" }}>忽略</button>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  const DesignsPage = () => (
+    <div style={{ flex: 1, overflow: "auto", padding: "24px 28px" }}>
+      <div style={{ marginBottom: 20 }}>
+        <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: -0.5, marginBottom: 4 }}>技术方案</div>
+        <div style={{ fontSize: 12, color: t.textSub }}>架构师 AI 根据需求生成方案，人工确认后拆解为任务列表</div>
+      </div>
+      {TECH_DESIGNS.map(td => (
+        <div key={td.id} style={{ background: t.card, border: "1px solid " + t.border, borderRadius: 10, padding: "16px 18px", marginBottom: 8, cursor: "pointer" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 6 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <span style={{ fontWeight: 600, fontSize: 14 }}>{td.title}</span>
+              <Badge config={sc[td.status]} />
+            </div>
+            <span style={{ fontSize: 11, color: t.textMuted }}>v{td.version}</span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11, color: t.textSub }}>
+            <span>{td.agent}</span>
+            <span style={{ color: t.textMuted }}>·</span>
+            <span>{"关联需求：" + (REQUIREMENTS.find(r => r.id === td.reqId) || {}).title}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const IssuesPage = () => (
+    <div style={{ flex: 1, overflow: "auto", padding: "24px 28px" }}>
+      <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: -0.5, marginBottom: 4 }}>Issue</div>
+      <div style={{ fontSize: 12, color: t.textSub, marginBottom: 20 }}>从 Review 问题转化或手动创建</div>
+      <div style={{ background: t.card, border: "1px solid " + t.border, borderRadius: 10, padding: "14px 18px" }}>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <span style={{ fontWeight: 600, fontSize: 13 }}>密码未哈希存储</span>
+            <Badge config={sevc.critical} />
+            <Badge config={sc.open} />
+          </div>
+          <span style={{ fontSize: 11, color: t.textSub }}>来自 Review #r-002</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  const RulesPage = () => (
+    <div style={{ flex: 1, overflow: "auto", padding: "24px 28px" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 20 }}>
+        <div>
+          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: -0.5, marginBottom: 4 }}>项目规范</div>
+          <div style={{ fontSize: 12, color: t.textSub }}>绑定到此项目的规范列表，Agent 执行时自动注入</div>
+        </div>
+        <button style={{ fontSize: 12, padding: "6px 16px", borderRadius: 8, border: "none", background: t.accent, color: t.accentText, cursor: "pointer", fontFamily: "inherit", fontWeight: 600 }}>+ 绑定规范</button>
+      </div>
+      {[
+        { title: "禁止内联样式", level: "error", roles: ["前端"], layer: "project" },
+        { title: "API 必须返回统一格式", level: "error", roles: ["后端"], layer: "project" },
+        { title: "密码必须 bcrypt 哈希", level: "error", roles: ["后端"], layer: "global" },
+        { title: "组件文件名 PascalCase", level: "warning", roles: ["前端"], layer: "project" },
+        { title: "接口必须有频率限制", level: "warning", roles: ["后端"], layer: "global" },
+        { title: "SQL 查询必须使用参数化", level: "error", roles: ["后端"], layer: "global" },
+        { title: "图片必须设置 alt 属性", level: "warning", roles: ["前端"], layer: "project" },
+        { title: "不允许 any 类型", level: "warning", roles: ["前端", "后端"], layer: "project" },
+      ].map((rule, i) => (
+        <div key={i} style={{ background: t.card, border: "1px solid " + t.border, borderRadius: 10, padding: "12px 18px", marginBottom: 6, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <span style={{ fontWeight: 500, fontSize: 13 }}>{rule.title}</span>
+            <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, fontWeight: 600, background: rule.level === "error" ? t.redBg : t.amberBg, color: rule.level === "error" ? t.red : t.amber, border: "1px solid " + (rule.level === "error" ? t.redBorder : t.amberBorder) }}>
+              {rule.level}
+            </span>
+          </div>
+          <div style={{ display: "flex", gap: 6 }}>
+            {rule.roles.map(r => <span key={r} style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: t.accentSoft, color: t.textSub, border: "1px solid " + t.border }}>{r}</span>)}
+            <span style={{ fontSize: 10, padding: "2px 7px", borderRadius: 20, background: t.purpleBg, color: t.purple, border: "1px solid " + t.purpleBorder }}>{rule.layer}</span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+
+  const contentMap = {
+    requirements: <RequirementsPage />,
+    designs: <DesignsPage />,
+    tasks: <TasksPage />,
+    reviews: <ReviewsPage />,
+    issues: <IssuesPage />,
+    rules: <RulesPage />,
+  };
+
+  return (
+    <div style={{ fontFamily: "'Inter', -apple-system, sans-serif", background: t.bg, color: t.text, height: "100vh", display: "flex", overflow: "hidden", fontSize: 13 }}>
+      <AppSidebar />
+      <div style={{ flex: 1, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        {activeNav === "requirements" && (
+          <div style={{ padding: "8px 16px", borderBottom: "1px solid " + t.border, display: "flex", gap: 4, background: t.surface }}>
+            {[
+              { label: "对话 + 文档", fn: () => { setShowChat(true); setShowDoc(true); } },
+              { label: "仅对话", fn: () => { setShowChat(true); setShowDoc(false); } },
+              { label: "需求列表", fn: () => { setShowChat(false); setShowDoc(false); } },
+            ].map(v => (
+              <button key={v.label} onClick={v.fn} style={{
+                fontSize: 11, padding: "4px 12px", borderRadius: 6, cursor: "pointer", fontFamily: "inherit",
+                border: "1px solid " + t.border, background: t.accentSoft, color: t.textSub,
+              }}>
+                {v.label}
+              </button>
+            ))}
+          </div>
+        )}
+        <div style={{ flex: 1, display: "flex", overflow: "hidden" }}>
+          {contentMap[activeNav]}
+        </div>
+      </div>
+      <style dangerouslySetInnerHTML={{ __html: `
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        button { font-family: inherit; }
+        button:hover { opacity: 0.78; }
+        input::placeholder { color: ${t.textMuted}; }
+        ::-webkit-scrollbar { width: 3px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: ${dark ? "#2a2a2a" : "#ddd"}; border-radius: 99px; }
+      `}} />
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
