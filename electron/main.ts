@@ -1,5 +1,7 @@
 import { app, BrowserWindow } from 'electron'
 import { join } from 'path'
+import { initDatabase, closeDatabase } from './data/database'
+import { seedBuiltinData } from './data/seed'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -26,7 +28,17 @@ function createWindow() {
   }
 }
 
-app.whenReady().then(createWindow)
+app.whenReady().then(() => {
+  // Initialize database and seed built-in data
+  initDatabase()
+  seedBuiltinData()
+
+  createWindow()
+})
+
+app.on('before-quit', () => {
+  closeDatabase()
+})
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') {
